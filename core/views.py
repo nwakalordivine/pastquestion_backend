@@ -74,7 +74,7 @@ class BanUserAPIView(APIView):
     def post(self, request, user_id):
         try:
             user = User.objects.get(pk=user_id)
-            days = int(request.data.get("days", 7))  # default ban for 7 days
+            days = int(request.data.get("days", 5))
             user.is_banned = True
             user.ban_until = timezone.now() + timedelta(days=days)
             user.save()

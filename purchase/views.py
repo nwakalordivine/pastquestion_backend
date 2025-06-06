@@ -9,12 +9,13 @@ from drf_yasg.utils import swagger_auto_schema
 from pastquestions.models import PastQuestion
 from .serializers import PurchaseRequestSerializer, PurchaseSerializer, TransactionSerializer, ManualCreditSerializer
 from .models import Purchase, Transaction
-import cloudinary.utils
+from cloudinary.utils import cloudinary_url
 from datetime import datetime, timedelta
 from django.utils import timezone
 from pastquestions.permissions import IsAdminUser
 from .models import User
 from decimal import Decimal
+import uuid
 
 class PurchaseAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -30,9 +31,6 @@ class PurchaseAPIView(APIView):
         payment_method = request.data.get("payment_method")
         reference = request.data.get("reference")
 
-        # Example for purchase view
-        if request.user.is_banned and request.user.ban_until and request.user.ban_until > timezone.now():
-            return Response({"error": "You are banned from making purchases until {}".format(request.user.ban_until)}, status=403)
         
 
         if not past_question_id or not payment_method:
@@ -41,17 +39,21 @@ class PurchaseAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if request.user.is_banned and request.user.ban_until and request.user.ban_until > timezone.now():
+            return Response({"error": "You are banned from making purchases until {}".format(request.user.ban_until)}, status=403)
+        
         try:
             past_question = PastQuestion.objects.get(id=past_question_id)
             cost = past_question.price
 
-            if Purchase.objects.filter(user=user, question=past_question).exists():
-                return Response(
-                    {"error": "You have already purchased this past question"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            # Handle wallet payment
+
             if payment_method == "wallet":
+                if Purchase.objects.filter(user=user, question=past_question).exists():
+                    return Response(
+                        {"error": "You have already purchased this past question"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                
                 if user.wallet_balance >= cost:
                     user.wallet_balance -= cost
                     user.save()
@@ -70,15 +72,24 @@ class PurchaseAPIView(APIView):
                         status="success"
                     )
 
-                    def get_full_file_url(public_id):
-                        base_url = "https://res.cloudinary.com/dfcon4lff/raw/upload/"
-                        return f"{base_url}{public_id}.pdf"
-                    
-                    download_url = get_full_file_url(str(past_question.file_url))
+                    # Generate signed URL for Cloudinary
+                    public_id = str(past_question.file_url)
+                    if not public_id.endswith('.pdf'):
+                        public_id += '.pdf'
+
+                    signed_url = cloudinary_url(
+                        public_id,
+                        resource_type="raw",
+                        sign_url=True,
+                        expires_at=int((datetime.now() + timedelta(hours=1)).timestamp())
+                    )[0]
+
                     return Response(
                         {
+                            "question": past_question.title,
+                            "question_year": past_question.year,
                             "message": "Payment successful",
-                            "download_url": download_url,
+                            "download_url": signed_url,
                             "wallet_balance": user.wallet_balance,
                         },
                         status=status.HTTP_200_OK,
@@ -91,14 +102,21 @@ class PurchaseAPIView(APIView):
 
             # Handle Paystack payment initiation
             elif payment_method == "paystack" and not reference:
-                # Initiate payment with Paystack
+
+                if Purchase.objects.filter(user=user, question=past_question).exists():
+                    return Response(
+                        {"error": "You have already purchased this past question"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                
                 url = "https://api.paystack.co/transaction/initialize"
                 headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+                reference = f"purchase_{user.id}_{past_question_id}_{uuid.uuid4().hex[:8]}"
                 payload = {
                     "email": user.email,
                     "amount": int(cost * 100),  # Convert to kobo
-                    "reference": f"purchase_{user.id}_{past_question_id}",
-                    "callback_url": "http://127.0.0.1:8000/api/payment/callback/"
+                    "reference": reference,
+                    "callback_url": settings.PAYSTACK_CALLBACK_URL,
                 }
                 response = requests.post(url, headers=headers, json=payload)
                 data = response.json()
@@ -109,6 +127,7 @@ class PurchaseAPIView(APIView):
                         {
                             "message": "Payment initiated",
                             "payment_url": payment_url,
+                            "reference": reference,
                         },
                         status=status.HTTP_201_CREATED,
                     )
@@ -120,14 +139,13 @@ class PurchaseAPIView(APIView):
 
             # Handle Paystack payment verification
             elif payment_method == "paystack" and reference:
-                # Verify payment with Paystack
                 url = f"https://api.paystack.co/transaction/verify/{reference}"
                 headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
                 response = requests.get(url, headers=headers)
                 data = response.json()
 
                 if data.get("status") and data["data"]["status"] == "success":
-                    amount_paid = data["data"]["amount"] / 100  # Convert from kobo to naira
+                    amount_paid = data["data"]["amount"] / 100  
 
                     if amount_paid < cost:
                         return Response(
@@ -154,11 +172,24 @@ class PurchaseAPIView(APIView):
                         status="success"
                     )
 
-                    download_url = str(past_question.file_url)
+                    # Generate signed URL for Cloudinary
+                    public_id = str(past_question.file_url)
+                    if not public_id.endswith('.pdf'):
+                        public_id += '.pdf'
+
+                    signed_url = cloudinary_url(
+                        public_id,
+                        resource_type="raw",
+                        sign_url=True,
+                        expires_at=int((datetime.now() + timedelta(hours=1)).timestamp())
+                    )[0]
+
                     return Response(
                         {
+                            "question": past_question.title,
+                            "question_year": past_question.year,
                             "message": "Payment successful",
-                            "download_url": download_url,
+                            "download_url": signed_url,
                             "wallet_balance": user.wallet_balance,
                         },
                         status=status.HTTP_200_OK,
@@ -186,72 +217,13 @@ class PurchaseAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-
-class PaystackCallbackAPIView(APIView):
-    permission_classes = [permissions.AllowAny]  # Paystack doesn't send authentication headers
-
-    def post(self, request):
-        reference = request.data.get("reference")
-
-        # Validate input
-        if not reference:
-            return Response(
-                {"error": "Payment reference is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            # Verify payment with Paystack
-            url = f"https://api.paystack.co/transaction/verify/{reference}"
-            headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
-            response = requests.get(url, headers=headers)
-            data = response.json()
-
-            if data.get("status") and data["data"]["status"] == "success":
-                amount_paid = data["data"]["amount"] / 100  # Convert from kobo to naira
-                # user_email = data["data"]["customer"]["email"]
-                reference_id = data["data"]["reference"]
-
-                # Update transaction status
-                transaction = Transaction.objects.filter(reference_id=reference_id).first()
-                if transaction:
-                    transaction.status = "success"
-                    transaction.save()
-
-                # Update user's wallet if excess payment
-                user = transaction.user
-                past_question = transaction.question
-                cost = past_question.price
-
-                if amount_paid > cost:
-                    excess_amount = amount_paid - cost
-                    user.wallet_balance += excess_amount
-                    user.save()
-
-                return Response(
-                    {"message": "Payment verified successfully"},
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                return Response(
-                    {"error": "Payment verification failed"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-
 class UserPurchasesAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         user = request.user
         purchases = Purchase.objects.filter(user=user)
-        serializer = PurchaseSerializer(purchases, many=True, context={'request': request})  # <-- pass context!
+        serializer = PurchaseSerializer(purchases, many=True, context={'request': request})  
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -262,11 +234,17 @@ class PurchaseDownloadView(APIView):
         purchase = get_object_or_404(Purchase, pk=pk, user=request.user)
         question = purchase.question
 
-        # Generate signed URL for Cloudinary
-        signed_url = cloudinary.utils.cloudinary_url(
-            str(question.file_url),
+        # Ensure public_id ends with .pdf
+        public_id = str(question.file_url)
+        if not public_id.endswith('.pdf'):
+            public_id += '.pdf'
+
+        # Generate signed URL for Cloudinary (as raw resource)
+        signed_url = cloudinary_url(
+            public_id,
+            resource_type="raw",
             sign_url=True,
-            expires_at=int((datetime.now() + timedelta(hours=1)).timestamp())  # URL expires in 1 hour
+            expires_at=int((datetime.now() + timedelta(hours=1)).timestamp())
         )[0]
 
         return Response({

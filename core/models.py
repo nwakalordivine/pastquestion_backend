@@ -32,7 +32,7 @@ class User(AbstractBaseUser):
     name = models.CharField(max_length=255)
     is_admin = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False) 
-    wallet_balance = models.DecimalField(max_digits=10, decimal_places=2, default=1000.00)
+    wallet_balance = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(default=now)
     is_banned = models.BooleanField(default=False)
     ban_until = models.DateTimeField(null=True, blank=True)

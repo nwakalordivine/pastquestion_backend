@@ -194,13 +194,15 @@ SWAGGER_SETTINGS = {
     }
 }
 
-PAYSTACK_SECRET_KEY = "sk_live_014d0c59a80f2de180c6cd5c301769074aa1a20f"
+PAYSTACK_SECRET_KEY = "sk_test_24f2473d5f62d999abc0302317e176020f131ff0"
 
 AUTH_USER_MODEL = 'core.User'
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+PAYSTACK_CALLBACK_URL = "https://your-frontend-site.com/payment-success"
 
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.gmail.com'
