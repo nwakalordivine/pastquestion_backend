@@ -11,4 +11,6 @@ urlpatterns = [
     path('admin/users/', views.UserListAPIView.as_view(), name='user_list'),
     path('admin/users/<int:user_id>/ban/', views.BanUserAPIView.as_view(), name='ban-user'),
     path('admin/me/', views.AdminUserSelfAPIView.as_view(), name='admin_user_self'),
+    path('auth/password-reset/', views.PasswordResetRequestAPIView.as_view(), name='password_reset_request'),
+    path('auth/password-reset/confirm/<uid>/<token>/', views.PasswordResetConfirmAPIView.as_view(), name='password_reset_confirm'),
 ]

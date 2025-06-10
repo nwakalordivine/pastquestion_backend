@@ -204,9 +204,14 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 PAYSTACK_CALLBACK_URL = "https://your-frontend-site.com/payment-success"
 
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'divinenwakalor31@gmail.com' 
-# EMAIL_HOST_PASSWORD = 'Divine1234@@'
+PASSWORD_RESET_TIMEOUT = 3600
+FRONTEND_URL = "https://your-frontend-site.com"
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com" 
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = "divinenwakalor31@gmail.com"
+EMAIL_USE_TLS = False  
+DEFAULT_FROM_EMAIL = "Pastquestion <divinenwakalor31@gmail.com>"
+EMAIL_HOST_PASSWORD = "digdzfndqcakwbzx"
