@@ -13,7 +13,7 @@ from datetime import timedelta
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
 from django.conf import settings
-from django.urls import reverse
+
 
 # Create your views here.
 class RegisterAPIView(generics.CreateAPIView):
