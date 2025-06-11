@@ -34,4 +34,9 @@ class ManualCreditSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
 
-   
+class FundWalletSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
+class FundWalletVerifySerializer(serializers.Serializer):
+    reference = serializers.CharField()

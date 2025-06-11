@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import permissions, status, generics
 from drf_yasg.utils import swagger_auto_schema
 from pastquestions.models import PastQuestion
-from .serializers import PurchaseRequestSerializer, PurchaseSerializer, TransactionSerializer, ManualCreditSerializer
+from .serializers import PurchaseRequestSerializer, PurchaseSerializer, TransactionSerializer, ManualCreditSerializer, FundWalletSerializer, FundWalletVerifySerializer
 from .models import Purchase, Transaction
 from cloudinary.utils import cloudinary_url
 from datetime import datetime, timedelta
@@ -16,6 +16,7 @@ from pastquestions.permissions import IsAdminUser
 from .models import User
 from decimal import Decimal
 import uuid
+from drf_yasg import openapi
 
 class PurchaseAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -23,7 +24,31 @@ class PurchaseAPIView(APIView):
     @swagger_auto_schema(
         request_body=PurchaseRequestSerializer,
         operation_description="Initiate or verify payment and provide access to the past question.",
-        responses={200: "Payment successful", 201: "Payment initiated", 400: "Payment failed"},
+        responses={
+            200: openapi.Response(
+                description="Payment successful",
+                examples={
+                    "application/json": {
+                        "question": "Mathematics 2023",
+                        "question_year": 2023,
+                        "message": "Payment successful",
+                        "download_url": "https://res.cloudinary.com/...",
+                        "wallet_balance": 1000.00
+                    }
+                }
+            ),
+            201: openapi.Response(
+                description="Payment initiated",
+                examples={
+                    "application/json": {
+                        "message": "Payment initiated",
+                        "payment_url": "https://paystack.com/pay/...",
+                        "reference": "purchase_1_2_abc12345"
+                    }
+                }
+            ),
+            400: "Payment failed"
+        }
     )
     def post(self, request):
         user = request.user
@@ -218,8 +243,25 @@ class PurchaseAPIView(APIView):
             )
 
 class UserPurchasesAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_description="Get all purchases for the authenticated user.",
+        responses={
+            200: openapi.Response(
+                description="List of purchases",
+                examples={
+                    "application/json": [
+                        {
+                            "id": 1,
+                            "question": "Mathematics 2023",
+                            "price_at_purchase": "500.00",
+                            "purchased_at": "2025-06-11T12:00:00Z"
+                        }
+                    ]
+                }
+            )
+        }
+    )
     def get(self, request):
         user = request.user
         purchases = Purchase.objects.filter(user=user)
@@ -229,7 +271,21 @@ class UserPurchasesAPIView(APIView):
 
 class PurchaseDownloadView(APIView):
     permission_classes = [IsAuthenticated]
-
+    @swagger_auto_schema(
+        operation_description="Get a signed download URL for a purchased past question.",
+        responses={
+            200: openapi.Response(
+                description="Signed download URL",
+                examples={
+                    "application/json": {
+                        "download_url": "https://res.cloudinary.com/...",
+                        "message": "Access granted"
+                    }
+                }
+            ),
+            404: "Not found"
+        }
+    )
     def get(self, request, pk):
         purchase = get_object_or_404(Purchase, pk=pk, user=request.user)
         question = purchase.question
@@ -303,6 +359,22 @@ class CreditUserWalletAPIView(APIView):
 class FundWalletAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=FundWalletSerializer,
+        operation_description="Initiate wallet fund payment.",
+        responses={
+            201: openapi.Response(
+                description="Payment initiated",
+                examples={
+                    "application/json": {
+                        "payment_url": "https://paystack.com/pay/...",
+                        "reference": "walletfund_1_abc12345"
+                    }
+                }
+            ),
+            400: "Payment failed"
+        }
+    )
     def post(self, request):
         user = request.user
         amount = request.data.get("amount")
@@ -313,7 +385,7 @@ class FundWalletAPIView(APIView):
         reference = f"walletfund_{user.id}_{uuid.uuid4().hex[:8]}"
         payload = {
             "email": user.email,
-            "amount": int(float(amount) * 100),  # Paystack expects amount in kobo
+            "amount": int(float(amount) * 100),
             "reference": reference,
             "callback_url": settings.PAYSTACK_CALLBACK_URL,
         }
@@ -335,8 +407,22 @@ class FundWalletAPIView(APIView):
             return Response({"error": "Failed to initiate payment"}, status=400)
 
 class FundWalletVerifyAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
+    @swagger_auto_schema(
+        request_body=FundWalletVerifySerializer,
+        operation_description="Verify wallet fund payment.",
+        responses={
+            200: openapi.Response(
+                description="Payment successful",
+                examples={
+                    "application/json": {
+                        "message": "Wallet funded successfully.",
+                        "wallet_balance": "2000.00"
+                    }
+                }
+            ),
+            400: "Payment failed"
+        }
+    )
     def post(self, request):
         user = request.user
         reference = request.data.get("reference")
@@ -348,7 +434,7 @@ class FundWalletVerifyAPIView(APIView):
         response = requests.get(url, headers=headers)
         data = response.json()
         if data.get("status") and data["data"]["status"] == "success":
-            amount_paid = data["data"]["amount"] / 100  # Convert from kobo to naira
+            amount_paid = data["data"]["amount"] / 100
             # Prevent double-crediting
             transaction, created = Transaction.objects.get_or_create(
                 reference_id=reference,
