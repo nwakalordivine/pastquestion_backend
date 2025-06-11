@@ -10,6 +10,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Sum, Count
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 # from purchase.models import Purchase
 
 class PastQuestionListAPIView(generics.ListAPIView):
@@ -40,6 +42,23 @@ class PastQuestionRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPI
 class PastQuestionStatsAPIView(APIView):
     permission_classes = [IsAdminUser]
 
+    @swagger_auto_schema(
+        operation_description="Get statistics about past questions.",
+        responses={
+            200: openapi.Response(
+                description="Statistics returned",
+                examples={
+                    "application/json": {
+                        "id": 0,
+                        "title": "Sample Question",
+                        "total_revenue": "1000.00",
+                        "total_purchases": 10,
+                        "unique_buyers": 10,
+                    }
+                }
+            )
+        }
+    )
     def get(self, request):
         stats = (
             PastQuestion.objects

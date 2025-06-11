@@ -253,7 +253,19 @@ class UserPurchasesAPIView(APIView):
                     "application/json": [
                         {
                             "id": 1,
-                            "question": "Mathematics 2023",
+                            "question": {
+                                "id": 0,
+                                "title": "Mathematics 2020",
+                                "description": "A comprehensive past question on mathematics for SS2 students.",
+                                "price": "1000.00",
+                                "subject": "Mathematics",
+                                "level": "SS2",
+                                "exam_type": "WAEC",
+                                "year": 2020,
+                                "created_at": "2025-06-01T20:01:02.583776Z",
+                                "uploaded_by": "admin_name",
+                                "file_url": "https://res.cloudinary.com/..."
+                            },
                             "price_at_purchase": "500.00",
                             "purchased_at": "2025-06-11T12:00:00Z"
                         }
@@ -334,7 +346,18 @@ class CreditUserWalletAPIView(APIView):
     @swagger_auto_schema(
         request_body=ManualCreditSerializer,
         operation_description="Admin manually credits a user's wallet.",
-        responses={200: "Wallet credited successfully", 400: "Invalid input", 404: "User not found"},
+        responses={
+            200: openapi.Response(
+                description="Admin successfully credited user's wallet",
+                examples={
+                    "application/json": [
+                        {
+                            "message": "Credited 1000.00 to John Doe's wallet with email: user@email.com"
+                        }
+                    ]
+                }
+            )
+        }
     )
     def post(self, request):
         try:

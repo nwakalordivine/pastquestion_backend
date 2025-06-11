@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework import permissions, status
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from pastquestions.permissions import IsAdminUser
 from django.utils import timezone
 from datetime import timedelta
@@ -75,6 +76,41 @@ class AdminUserSelfAPIView(generics.RetrieveAPIView):
 class BanUserAPIView(APIView):
     permission_classes = [IsAdminUser]
 
+    @swagger_auto_schema(
+        operation_description="Ban a user for a specified number of days (default: 5).",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'days': openapi.Schema(type=openapi.TYPE_INTEGER, description='Number of days to ban the user', default=5),
+            }
+        ),
+        responses={
+            200: openapi.Response(
+                description="User banned successfully",
+                examples={
+                    "application/json": {
+                        "message": "User banned for 5 days."
+                    }
+                }
+            ),
+            404: openapi.Response(
+                description="User not found",
+                examples={
+                    "application/json": {
+                        "error": "User not found."
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Bad request",
+                examples={
+                    "application/json": {
+                        "error": "Some error message"
+                    }
+                }
+            ),
+        }
+    )
     def post(self, request, user_id):
         try:
             user = User.objects.get(pk=user_id)
