@@ -300,3 +300,72 @@ class CreditUserWalletAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+class FundWalletAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        amount = request.data.get("amount")
+        if not amount or float(amount) <= 0:
+            return Response({"error": "Invalid amount."}, status=400)
+
+        import uuid
+        reference = f"walletfund_{user.id}_{uuid.uuid4().hex[:8]}"
+        payload = {
+            "email": user.email,
+            "amount": int(float(amount) * 100),  # Paystack expects amount in kobo
+            "reference": reference,
+            "callback_url": settings.PAYSTACK_CALLBACK_URL,
+        }
+        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+        response = requests.post("https://api.paystack.co/transaction/initialize", headers=headers, json=payload)
+        data = response.json()
+        if data.get("status"):
+            payment_url = data["data"]["authorization_url"]
+            # Optionally, save a pending transaction record here for tracking
+            Transaction.objects.create(
+                user=user,
+                amount=amount,
+                reference_id=reference,
+                transaction_type="credit",
+                status="pending"
+            )
+            return Response({"payment_url": payment_url, "reference": reference}, status=201)
+        else:
+            return Response({"error": "Failed to initiate payment"}, status=400)
+
+class FundWalletVerifyAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        reference = request.data.get("reference")
+        if not reference:
+            return Response({"error": "Reference is required."}, status=400)
+
+        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+        url = f"https://api.paystack.co/transaction/verify/{reference}"
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        if data.get("status") and data["data"]["status"] == "success":
+            amount_paid = data["data"]["amount"] / 100  # Convert from kobo to naira
+            # Prevent double-crediting
+            transaction, created = Transaction.objects.get_or_create(
+                reference_id=reference,
+                defaults={
+                    "user": user,
+                    "amount": amount_paid,
+                    "transaction_type": "credit",
+                    "status": "success"
+                }
+            )
+            if created or transaction.status != "success":
+                user.wallet_balance += Decimal(amount_paid)
+                user.save()
+                transaction.status = "success"
+                transaction.save()
+            return Response({"message": "Wallet funded successfully.", "wallet_balance": user.wallet_balance})
+        else:
+            return Response({"error": "Payment verification failed."}, status=400)
+
+
