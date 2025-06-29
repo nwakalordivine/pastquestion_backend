@@ -47,7 +47,6 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
     'cloudinary',
     'cloudinary_storage',
     'pastquestions',
@@ -107,7 +106,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',
-        'USER': 'postgres.mpwdwjezdiqkyaaebewz',
+        'USER': 'postgres.hiukuibanujxxwxtvmml',
         'PASSWORD': 'pastquestion_backend',
         'HOST': 'aws-0-eu-central-1.pooler.supabase.com',
         'PORT': '6543',

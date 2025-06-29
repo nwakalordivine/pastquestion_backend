@@ -10,5 +10,5 @@ urlpatterns = [
     path('admin/transactions/<int:pk>/', views.AdminTransationsDetailAPIView.as_view(), name='specific_transaction'),
     path('admin/manual-credit/', views.CreditUserWalletAPIView.as_view(), name='credit-user-wallet'),
     path('wallet/fund/', views.FundWalletAPIView.as_view(), name='wallet_fund'),
-    path('wallet/fund/verify/', views.FundWalletVerifyAPIView.as_view(), name='wallet_fund_verify'),
+    path('wallet/fund/verify/', views.FundWalletVerifyAPIView.as_view(), name='wallet_fund_verify')
 ]

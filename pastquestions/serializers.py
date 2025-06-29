@@ -22,9 +22,10 @@ class PastQuestionSerializer(serializers.ModelSerializer):
         user = request.user if request else None
         if user and (user.is_admin or Purchase.objects.filter(user=user, question=instance).exists()):
             try:
-                public_id = instance.file_url.public_id  # or str(instance.file_url)
-                full_url = cloudinary_url(public_id + ".pdf", resource_type="raw", secure=True)[0]
-
+                public_id = instance.file_url.public_id
+                if not public_id.endswith('.pdf'):
+                    public_id += '.pdf'
+                full_url = cloudinary_url(public_id, resource_type="raw", secure=True)[0]
                 data['file_url'] = full_url
             except Exception:
                 data['file_url'] = "Error generating file URL"

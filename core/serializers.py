@@ -17,9 +17,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
