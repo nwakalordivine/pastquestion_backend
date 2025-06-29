@@ -11,7 +11,7 @@ class UserManager(BaseUserManager):
             name=name,
             wallet_balance=wallet_balance,
             is_admin=is_admin,
-            is_staff=is_staff, 
+            is_staff=is_staff,
         )
         user.set_password(password)
         user.save(using=self._db)
