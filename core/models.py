@@ -46,10 +46,10 @@ class User(AbstractBaseUser):
         return self.email
 
     def has_perm(self, perm, obj=None):
-        return self.is_admin
+        return self.is_admin or self.is_staff
 
     def has_module_perms(self, app_label):
-        return self.is_admin
+        return self.is_admin or self.is_staff
 
     def save(self, *args, **kwargs):
         if self.wallet_balance < 0:

@@ -102,14 +102,15 @@ WSGI_APPLICATION = 'pastquestion_api.wsgi.application'
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres.hiukuibanujxxwxtvmml',
-        'PASSWORD': 'pastquestion_backend',
-        'HOST': 'aws-0-eu-central-1.pooler.supabase.com',
-        'PORT': '6543',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
         'OPTIONS': {
             'sslmode': 'require',
         },
@@ -204,7 +205,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 PAYSTACK_CALLBACK_URL = "https://your-frontend-site.com/payment-success"
 
 PASSWORD_RESET_TIMEOUT = 3600
-FRONTEND_URL = "https://your-frontend-site.com"
+FRONTEND_URL = "http://localhost:3000"
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com" 
